@@ -4,8 +4,10 @@ import re
 
 from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 import Responses
+from PowerHourSuggestions import forward_to_superuser
 
 
 async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, state_cf, ban_list: Set[int]) -> bool:
@@ -57,7 +59,15 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
     # If there is no link recorded for the user yet.
     if active_suggestors[user_id] == "":
         # TODO Get the first link, remove tracking stuff. Then save to active_suggestors[user_id]
-        # TODO Check if the link was sent before.
+
+        if url:= get_link_from_message(update) is None:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_NO_LINK)
+            return True
+
+        # TODO Remove tracking information?
+        # TODO Check if the link was sent before?
+        active_suggestors[user_id] = url
+
         keyboard = [
             [InlineKeyboardButton(Responses.SUGGESTION_YES_BUTTON, callback_data=Responses.SUGGESTION_YES_CALLBACK_DATA)],
             [InlineKeyboardButton(Responses.SUGGESTION_NO_BUTTON, callback_data=Responses.SUGGESTION_NO_CALLBACK_DATA)],
@@ -65,10 +75,12 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
         reply_buttons = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMMENT, reply_markup=reply_buttons)
 
+
         return True
 
-    # If there is already a link sent by the user and it's still active then the user is making a comment.
-    # TODO: Send link to superuser(s)
+    # If there is already a link sent by the user, and it's still active then the user is making a comment.
+    comment = update.message.text
+    await forward_to_superuser(context, update.message.from_user.id, update.message.chat.username, comment=comment)
 
 
 
@@ -151,4 +163,20 @@ def get_user_from_text(message_text: str) -> Union[int, None]:
 
     if match:
         return int(match.group(1))
+    return None
+
+def get_link_from_message(update: Update) -> Union[str, None]:
+    """ Gets the first link from a message.
+
+        :param upddate: Update object containing the sent message.
+
+        :returns: The first link or None
+    """
+    message = update.message
+
+    if message and message.entities:
+        for entity in message.entities:
+            if entity.type == 'url':
+                return message.parse_entity(entity)
+
     return None

@@ -20,7 +20,6 @@ else:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await PowerHourSuggestions.start(update, context)
 
-# TODO: Make help and suggest command on botfather.
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await PowerHourSuggestions.help_command(update, context)
 
@@ -31,7 +30,7 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await PowerHourSuggestions.receive_text(update, context)
 
 async def receive_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await PowerHourSuggestions.button_press(update, context, application)
+    await PowerHourSuggestions.button_press(update, context)
 
 # == Main == #
 if __name__ == '__main__':

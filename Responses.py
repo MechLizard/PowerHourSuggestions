@@ -1,8 +1,7 @@
 # First message when starting the bot
 GREETING = "Hi! I'm the power hour suggestions bot. Suggest a power hour music video by selecting /suggest."
 
-# TODO Update this
-HELP = GREETING + "\n\n The github for this code is at: [GitHub](https://github.com/mech-power-hour-suggestions)"
+HELP = GREETING + "\n\n The github for this code is at: [GitHub](https://github.com/MechLizard/PowerHourSuggestions)"
 
 # Submitting a suggestion
 SUGGESTION_LINK = "Okay. Send me JUST the link to the video. You can send a comment about it after."
@@ -13,6 +12,7 @@ SUGGESTION_YES_CALLBACK_DATA = "yes_comment_button"
 SUGGESTION_NO_BUTTON = "No. Just submit the link."
 SUGGESTION_NO_CALLBACK_DATA = "no_comment_button"
 SUGGESTION_COMPLETE = "Suggestion submitted. Thank you!"
+SUGGESTION_NO_LINK = "No link found in message. Please try again."
 
 # Posting the suggestion
 SUGGESTION_POST = ("Submission from: <a href=\"tg:// user?id={user_id}\">{user_name}</ a>\n\n"

@@ -40,8 +40,6 @@ except FileNotFoundError:
 
 bot_start_time = datetime.now()
 
-# TODO: Prompt for link, then ask for text to go with the link.
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Greets the user and gives instructions on how to use the bot.
 
@@ -88,8 +86,8 @@ async def suggest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Handles incoming text messages and commands from users and superusers.
 
-        :param update: Update object containing the sent message.
-        :param context: Object containing the bot interface for the current chat.
+    :param update: Update object containing the sent message.
+    :param context: Object containing the bot interface for the current chat.
     """
 
     global ban_list
@@ -110,12 +108,11 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await TextCommands.user_text(update, context, message_text, update.message.from_user.id, active_suggesters)
 
 
-async def button_press(update, context, application):
+async def button_press(update, context):
     """ Triggers when a button presented by the bot is pressed.
 
     :param update: Update object containing the sent message.
     :param context: Object containing the bot interface for the current chat.
-    :param application: Application object containing the current application.
     """
 
     query = update.callback_query
@@ -127,11 +124,11 @@ async def button_press(update, context, application):
 
     # User hits "No" when prompted if they want to leave a comment.
     if query.data == Responses.SUGGESTION_YES_CALLBACK_DATA:
-        # TODO Send superuser the message
+        await forward_to_superuser(context, update.message.from_user.id, update.message.chat.username)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
-        pass
 
-async def forward_to_superuser(update: Update, context: ContextTypes.DEFAULT_TYPE, current_user_id: int,
+
+async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_id: int,
                                current_user_name: str, comment=""):
     """ Sends suggestion to the superuser(s).
 
