@@ -1,20 +1,23 @@
 from __future__ import annotations
 import pickle
 import logging
-from datetime import (datetime, timedelta)
-from typing import (Dict, Union, List)
-import random
-from threading import Thread
+from datetime import (datetime)
+from typing import (Dict)
 
-from telegram import (Update, InlineKeyboardButton, InlineKeyboardMarkup, Sticker, PhotoSize)
+from telegram import (Update)
 from telegram.constants import ParseMode
-from telegram.ext import (ContextTypes, ApplicationBuilder, Application)
+from telegram.ext import (ContextTypes)
 
 import ConfigHandler
 import Responses
 import TextCommands
 
-# Enable logging
+### Logging ###
+class HttpxFilter(logging.Filter):
+    def filter(self, record):
+        # Block only if the message contains 'getUpdates' so it doesn't spam the logs
+        return 'getUpdates' not in record.getMessage()
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -24,6 +27,10 @@ logging.basicConfig(
     ]
 )
 
+logging.getLogger("httpx").addFilter(HttpxFilter())
+
+
+### Setup ###
 config = ConfigHandler.read_config()
 setup_cf = config['SETUP']
 state_cf = config['STATE']
@@ -37,9 +44,11 @@ try:
         users = pickle.load(file)
 except FileNotFoundError:
     print("No ban_list.p found. Creating new ban list.")
+    pickle.dump(ban_list, open("ban_list.p", "wb"))
 
 bot_start_time = datetime.now()
 
+### Functions ###
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Greets the user and gives instructions on how to use the bot.
 
@@ -53,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Triggers on \help.
+    """ Triggers on \\help.
     Replies to the user with basic functionality of the bot, github link, and how many stickers they have left.
 
     :param update: Update object containing the sent message.
@@ -66,7 +75,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def suggest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Triggers on \suggest.
+    """ Triggers on \\suggest.
     Saves the user's ID to represent that the user is actively suggesting a link.
 
     :param update: Update object containing the sent message.
@@ -121,10 +130,11 @@ async def button_press(update, context):
     # User hits "Yes" when prompted if they want to leave a comment.
     if query.data == Responses.SUGGESTION_YES_CALLBACK_DATA:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMMENT)
+        return
 
     # User hits "No" when prompted if they want to leave a comment.
-    if query.data == Responses.SUGGESTION_YES_CALLBACK_DATA:
-        await forward_to_superuser(context, update.message.from_user.id, update.message.chat.username)
+    if query.data == Responses.SUGGESTION_NO_CALLBACK_DATA:
+        await forward_to_superuser(context, update.effective_chat.id, update.effective_chat.username)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
 
 
@@ -145,8 +155,9 @@ async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_
 
     superuser_text = Responses.SUGGESTION_POST.format(user_name=current_user_name, user_id=current_user_id,
                                                       URL=active_suggesters[current_user_id])
-    for super_id in setup_cf['super_user_id']:
-        if comment != "":
-            superuser_text += "\n\n" + Responses.COMMENT_FROM_SUGGESTOR.format(comment=comment)
+    if comment != "":
+        superuser_text += "\n\n" + Responses.COMMENT_FROM_SUGGESTOR.format(comment=comment)
 
+    for super_id in setup_cf['super_user_id']:
         await context.bot.send_message(chat_id=super_id, text=superuser_text, parse_mode=ParseMode.HTML)
+

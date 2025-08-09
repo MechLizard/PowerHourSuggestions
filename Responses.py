@@ -15,7 +15,7 @@ SUGGESTION_COMPLETE = "Suggestion submitted. Thank you!"
 SUGGESTION_NO_LINK = "No link found in message. Please try again."
 
 # Posting the suggestion
-SUGGESTION_POST = ("Submission from: <a href=\"tg:// user?id={user_id}\">{user_name}</ a>\n\n"
+SUGGESTION_POST = ("Submission from: <a href=\"tg://user?id={user_id}\">{user_name}</a>\n\n"
                    "{URL}")
 COMMENT_FROM_SUGGESTOR = "Comment from submitter: {comment}"
 
@@ -30,7 +30,7 @@ DISABLE_BOT = "disable bot"
 # Command responses
 USER_BANNED = "That user has been banned."
 USER_UNBANNED = "That user has been unbanned."
-USER_NOT_BANNED = "That user has not been banned."
+USER_NOT_BANNED = "That user was not on the ban list."
 BOT_ENABLED = "The bot has been enabled."
 BOT_ALREADY_ENABLED = "The bot is already enabled."
 BOT_DISABLED = "The bot has been disabled."

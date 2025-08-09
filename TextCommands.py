@@ -2,12 +2,11 @@ import pickle
 from typing import Dict, Union, Set
 import re
 
-from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.ext import ContextTypes
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 import Responses
-from PowerHourSuggestions import forward_to_superuser
+import PowerHourSuggestions
 
 
 async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, state_cf, ban_list: Set[int]) -> bool:
@@ -40,7 +39,6 @@ async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE,
     return False
 
 
-# TODO user_commands
 async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, user_id: int, active_suggestors: Dict[int, str]) -> bool:
     """ Takes a command sent by a superuser. Check whether the messages match a superuser command. If so, run that command.
 
@@ -58,9 +56,9 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
 
     # If there is no link recorded for the user yet.
     if active_suggestors[user_id] == "":
-        # TODO Get the first link, remove tracking stuff. Then save to active_suggestors[user_id]
 
-        if url:= get_link_from_message(update) is None:
+        url = get_link_from_message(update)
+        if url is None:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_NO_LINK)
             return True
 
@@ -80,7 +78,8 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
 
     # If there is already a link sent by the user, and it's still active then the user is making a comment.
     comment = update.message.text
-    await forward_to_superuser(context, update.message.from_user.id, update.message.chat.username, comment=comment)
+    await PowerHourSuggestions.forward_to_superuser(context, update.message.from_user.id, update.message.chat.username, comment=comment)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
 
 
 
@@ -100,15 +99,18 @@ async def ban_unban(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
     if command == Responses.BAN_USER_COMMAND:
         ban_list.add(user_id)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.USER_BANNED)
+        pickle.dump(ban_list, open("ban_list.p", "wb"))
         return True
 
     # unban
     if command == Responses.UNBAN_USER_COMMAND:
-        if user_id in ban_list:
+        if user_id not in ban_list:
             text = Responses.USER_NOT_BANNED
         else:
-            text = Responses.USER_BANNED
+            text = Responses.USER_UNBANNED
+            ban_list.remove(user_id)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        pickle.dump(ban_list, open("ban_list.p", "wb"))
         return True
 
     return False
@@ -176,7 +178,8 @@ def get_link_from_message(update: Update) -> Union[str, None]:
 
     if message and message.entities:
         for entity in message.entities:
-            if entity.type == 'url':
-                return message.parse_entity(entity)
+            if entity.type == MessageEntity.URL:
+                url = message.parse_entity(entity)
+                return url
 
     return None

@@ -4,7 +4,7 @@ import ast
 def get_default_config():
     setup = {
         'telegram_api_token': '',
-        'super-user_id': [],
+        'super_user_id': [],
     }
     state = {
         'bot_enabled': True,
@@ -41,6 +41,8 @@ def create_default_config_file():
     with open('BotConfig.ini', 'w') as configfile:
         config.write(configfile)
 
+    return config_info
+
 def read_config():
     config_dict = {}
     config = configparser.ConfigParser()
@@ -52,7 +54,7 @@ def read_config():
         for section in config.sections():
             config_dict[section] = dict(config[section])
     except IOError:
-        create_default_config_file()
+        config_dict = create_default_config_file()
 
     config.read('BotConfig.ini')
 
