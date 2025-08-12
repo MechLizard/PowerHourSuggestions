@@ -30,7 +30,7 @@ def create_default_config_file():
     config.add_section('SETUP')
     config.set('SETUP', '# The token you got from Telegram\'s BotFather as a string', None)
     config.set('SETUP', 'TELEGRAM_API_TOKEN', save_conf['SETUP']['telegram_api_token'])
-    config.set('SETUP', '# The ID of the user that is allowed to give moderator commands. Can add multiple, each separated by a comma. A list of ints (can be one)', None)
+    config.set('SETUP', '# The ID of the user(s) that is allowed to give moderator commands and gets suggestions. Can add multiple, each separated by a comma.', None)
     config.set('SETUP', 'SUPER_USER_ID', save_conf['SETUP']['super_user_id'])
 
     # STATE section

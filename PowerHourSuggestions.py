@@ -2,10 +2,8 @@ from __future__ import annotations
 import pickle
 import logging
 from datetime import (datetime)
-from typing import (Dict, Any)
+from typing import (Dict)
 
-#TODO: Generate requirements.txt (pip freeze)
-#TODO: Create readme
 from telegram import (Update)
 from telegram.constants import ParseMode
 from telegram.ext import (ContextTypes)
@@ -75,7 +73,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ Triggers on \\help.
-    Replies to the user with basic functionality of the bot, github link, and how many stickers they have left.
+    Replies to the user with basic functionality of the bot, GitHub link, and how many stickers they have left.
 
     :param update: Update object containing the sent message.
     :param context: Object containing the bot interface for the current chat.
