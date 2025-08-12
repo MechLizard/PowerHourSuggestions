@@ -2,8 +2,10 @@ from __future__ import annotations
 import pickle
 import logging
 from datetime import (datetime)
-from typing import (Dict)
+from typing import (Dict, Any)
 
+#TODO: Generate requirements.txt (pip freeze)
+#TODO: Create readme
 from telegram import (Update)
 from telegram.constants import ParseMode
 from telegram.ext import (ContextTypes)
@@ -173,7 +175,6 @@ async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_
                                current_user_name: str, comment=""):
     """ Sends suggestion to the superuser(s).
 
-        :param update: Update object containing the sent message.
         :param context: Object containing the bot interface for the current chat.
         :param current_user_id: The suggester's ID.
         :param current_user_name: The name of the current user.

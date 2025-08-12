@@ -33,8 +33,9 @@ SPLIT_CANCELLED = "Split cancelled."
 SPLIT_COMPLETED = "Suggestion history wiped. Starting new list."
 
 LIST_EMPTY = "There have been no suggestions sent since the last split."
-LIST_ENTRY = ("From: <a href=\"tg://user?id={user_id}\">{user_name}</a>\n"
-              "{URL}")
+LIST_USERNAME = "From: <a href=\"tg://user?id={user_id}\">{user_name}</a>"
+LIST_VIDEO_TITLE = "Title: {video_title}"
+LIST_URL = "{URL}"
 LIST_COMMENT = "Comment: {comment}"
 
 # Submitting a suggestion

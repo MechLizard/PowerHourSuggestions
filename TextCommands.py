@@ -5,6 +5,7 @@ import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
+import yt_dlp
 
 import Responses
 import PowerHourSuggestions
@@ -86,6 +87,8 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id:
         # TODO Remove tracking information?
         # TODO Check if the link was sent before?
         active_suggesters[user_id].url = url
+
+        active_suggesters[user_id].video_title = get_youtube_video_title(url)
 
         keyboard = [
             [InlineKeyboardButton(Responses.SUGGESTION_YES_BUTTON, callback_data=Responses.SUGGESTION_YES_CALLBACK_DATA)],
@@ -180,7 +183,10 @@ async def list_suggestions(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     text = ""
     if suggestion_list:
         for suggest in suggestion_list:
-            text += Responses.LIST_ENTRY.format(user_id=suggest.id, user_name=suggest.username, URL=suggest.url)
+            text += Responses.LIST_USERNAME.format(user_id=suggest.id, user_name=suggest.username)
+            if suggest.video_title:
+                text += "\n" + Responses.LIST_VIDEO_TITLE.format(video_title=suggest.video_title)
+            text += "\n" + Responses.LIST_URL.format(URL=suggest.url)
             if suggest.comment is not None:
                 text += "\n" + Responses.LIST_COMMENT.format(comment=suggest.comment)
             text += "\n\n"
@@ -247,7 +253,7 @@ def get_user_from_text(message_text: str) -> Union[int, None]:
 def get_link_from_message(update: Update) -> Union[str, None]:
     """ Gets the first link from a message.
 
-        :param upddate: Update object containing the sent message.
+        :param update: Update object containing the sent message.
 
         :returns: The first link or None
     """
@@ -260,3 +266,17 @@ def get_link_from_message(update: Update) -> Union[str, None]:
                 return url
 
     return None
+
+def get_youtube_video_title(url: str) -> str | None:
+    ydl_opts = {
+        'quiet': True,  # Suppress console output from yt-dlp
+        'no_warnings': True,  # Suppress warnings
+        'extract_flat': True,  # Only extract basic information, no full download
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            return info_dict.get('title', None)
+    except Exception as e:
+        return None
