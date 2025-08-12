@@ -38,7 +38,7 @@ state_cf = config['STATE']
 
 ban_list: set[int] = set() # User ids are stored as an int.
 suggestion_list: set[suggestion] = set()
-active_suggesters: Dict[int, suggestion] = {} # [(User ID), (the link the user sent, if they sent it yet)]
+active_suggesters: Dict[int, suggestion] = {}
 
 # Check if there is a previously saved user list
 try:

@@ -10,7 +10,6 @@ import PowerHourSuggestions
 config = ConfigHandler.read_config()
 apiToken = config['SETUP']['telegram_api_token']
 
-# Apply token
 if apiToken:
     application = ApplicationBuilder().token(apiToken).build()
 else:

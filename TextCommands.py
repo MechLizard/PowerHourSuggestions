@@ -123,14 +123,12 @@ async def ban_unban(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
         :returns: A bool indicating whether the message triggers this function.
     """
 
-    # ban
     if command == Responses.BAN_USER_COMMAND:
         ban_list.add(user_id)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.USER_BANNED)
         pickle.dump(ban_list, open("ban_list.p", "wb"))
         return True
 
-    # unban
     if command == Responses.UNBAN_USER_COMMAND:
         if user_id not in ban_list:
             text = Responses.USER_NOT_BANNED
@@ -209,7 +207,6 @@ async def enable_disable_bot(update: Update, context: ContextTypes.DEFAULT_TYPE,
         :returns: A bool indicating whether the message triggers this function.
     """
 
-    # Turn off bot
     if command == Responses.DISABLE_BOT:
         if state_cf['bot_enabled']:
             text = Responses.BOT_DISABLED
@@ -219,7 +216,6 @@ async def enable_disable_bot(update: Update, context: ContextTypes.DEFAULT_TYPE,
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         return True
 
-    # Turn on bot
     if command == Responses.ENABLE_BOT:
         if state_cf['bot_enabled']:
             text = Responses.BOT_ALREADY_ENABLED
@@ -269,8 +265,8 @@ def get_link_from_message(update: Update) -> Union[str, None]:
 
 def get_youtube_video_title(url: str) -> str | None:
     ydl_opts = {
-        'quiet': True,  # Suppress console output from yt-dlp
-        'no_warnings': True,  # Suppress warnings
+        'quiet': True,
+        'no_warnings': True,
         'extract_flat': True,  # Only extract basic information, no full download
     }
 
@@ -278,5 +274,5 @@ def get_youtube_video_title(url: str) -> str | None:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
             return info_dict.get('title', None)
-    except Exception as e:
+    except:
         return None
