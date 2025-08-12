@@ -3,6 +3,7 @@ from typing import Dict, Union, Set
 import re
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 import Responses
@@ -186,7 +187,7 @@ async def list_suggestions(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     else:
         text = Responses.LIST_EMPTY
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode=ParseMode.HTML)
 
 
     return True

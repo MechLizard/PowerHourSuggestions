@@ -50,7 +50,7 @@ except FileNotFoundError:
 
 try:
     with open("suggestion_list.p", "rb") as file:
-        users = pickle.load(file)
+        suggestion_list = pickle.load(file)
 except FileNotFoundError:
     print("No suggestion_list.p found. Creating new suggestion list.")
     pickle.dump(ban_list, open("suggestion_list.p", "wb"))
@@ -153,17 +153,20 @@ async def button_press(update, context):
         await forward_to_superuser(context, update.effective_chat.id, update.effective_chat.username)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
         del active_suggesters[update.effective_chat.id]
+        return
 
     ### Superuser is asked if they're sure they want to split the list history ###
-    if query.data == Responses.SU_BUTTON_SPLIT_YES:
+    if query.data == Responses.SU_BUTTON_YES_SPLIT_CALLBACK_DATA:
         # Outputs the previous suggestions before deleting them
         await TextCommands.list_suggestions(update, context, Responses.LIST_COMMAND, suggestion_list)
         suggestion_list.clear()
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SPLIT_COMPLETED)
+        return
 
 
-    if query.data == Responses.SU_BUTTON_SPLIT_NO:
+    if query.data == Responses.SU_BUTTON_NO_SPLIT_CALLBACK_DATA:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SPLIT_CANCELLED)
+        return
 
 
 async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_id: int,
