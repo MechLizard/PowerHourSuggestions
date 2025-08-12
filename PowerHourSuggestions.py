@@ -11,6 +11,7 @@ from telegram.ext import (ContextTypes)
 import ConfigHandler
 import Responses
 import TextCommands
+import suggestion
 
 ### Logging ###
 class HttpxFilter(logging.Filter):
@@ -36,7 +37,8 @@ setup_cf = config['SETUP']
 state_cf = config['STATE']
 
 ban_list: set[int] = set() # User ids are stored as an int.
-active_suggesters: Dict[int, str] = {} # [(User ID), (the link the user sent, if they sent it yet)]
+suggestion_list: set[suggestion] = set()
+active_suggesters: Dict[int, suggestion] = {} # [(User ID), (the link the user sent, if they sent it yet)]
 
 # Check if there is a previously saved user list
 try:
@@ -45,6 +47,14 @@ try:
 except FileNotFoundError:
     print("No ban_list.p found. Creating new ban list.")
     pickle.dump(ban_list, open("ban_list.p", "wb"))
+
+try:
+    with open("suggestion_list.p", "rb") as file:
+        users = pickle.load(file)
+except FileNotFoundError:
+    print("No suggestion_list.p found. Creating new suggestion list.")
+    pickle.dump(ban_list, open("suggestion_list.p", "wb"))
+
 
 bot_start_time = datetime.now()
 
@@ -71,7 +81,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not state_cf['bot_enabled']:
         return
-    text = Responses.HELP
+
+    if update.message.from_user.id in setup_cf['super_user_id']:
+        text = Responses.HELP_SUPERUSER
+    else:
+        text = Responses.HELP
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def suggest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -87,7 +101,8 @@ async def suggest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id in ban_list:
         return
 
-    active_suggesters[update.effective_chat.id] = ""
+    active_suggesters[update.effective_chat.id] = suggestion.Suggestion(update.effective_chat.id,
+                                                                        update.message.chat.username)
 
     text = Responses.SUGGESTION_LINK
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
@@ -104,8 +119,9 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.message.text
     # Superuser commands
     if update.message.from_user.id in setup_cf['super_user_id']:
-        if await TextCommands.super_user_command(update, context, message_text, state_cf, ban_list):
-            return
+        await TextCommands.super_user_command(update, context, message_text,
+                                              state_cf, ban_list, active_suggesters, suggestion_list)
+        return
 
     # Normal user commands
     if not state_cf['bot_enabled']:
@@ -114,7 +130,7 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id in ban_list:
         return
 
-    await TextCommands.user_text(update, context, message_text, update.message.from_user.id, active_suggesters)
+    await TextCommands.user_text(update, context, update.message.from_user.id, active_suggesters, suggestion_list)
 
 
 async def button_press(update, context):
@@ -127,15 +143,27 @@ async def button_press(update, context):
     query = update.callback_query
     await query.answer()
 
-    # User hits "Yes" when prompted if they want to leave a comment.
+    ### User asked: Would you like to leave a comment? ###
     if query.data == Responses.SUGGESTION_YES_CALLBACK_DATA:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMMENT)
         return
 
-    # User hits "No" when prompted if they want to leave a comment.
     if query.data == Responses.SUGGESTION_NO_CALLBACK_DATA:
+        suggestion_list.add(active_suggesters[update.effective_chat.id])
         await forward_to_superuser(context, update.effective_chat.id, update.effective_chat.username)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
+        del active_suggesters[update.effective_chat.id]
+
+    ### Superuser is asked if they're sure they want to split the list history ###
+    if query.data == Responses.SU_BUTTON_SPLIT_YES:
+        # Outputs the previous suggestions before deleting them
+        await TextCommands.list_suggestions(update, context, Responses.LIST_COMMAND, suggestion_list)
+        suggestion_list.clear()
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SPLIT_COMPLETED)
+
+
+    if query.data == Responses.SU_BUTTON_SPLIT_NO:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SPLIT_CANCELLED)
 
 
 async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_id: int,
@@ -154,10 +182,12 @@ async def forward_to_superuser(context: ContextTypes.DEFAULT_TYPE, current_user_
         return
 
     superuser_text = Responses.SUGGESTION_POST.format(user_name=current_user_name, user_id=current_user_id,
-                                                      URL=active_suggesters[current_user_id])
+                                                      URL=active_suggesters[current_user_id].url)
     if comment != "":
         superuser_text += "\n\n" + Responses.COMMENT_FROM_SUGGESTOR.format(comment=comment)
 
     for super_id in setup_cf['super_user_id']:
         await context.bot.send_message(chat_id=super_id, text=superuser_text, parse_mode=ParseMode.HTML)
 
+    suggestion_list.add(active_suggesters[current_user_id])
+    pickle.dump(suggestion_list, open("suggestion_list.p", "wb"))

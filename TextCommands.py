@@ -7,9 +7,11 @@ from telegram.ext import ContextTypes
 
 import Responses
 import PowerHourSuggestions
+import suggestion
 
 
-async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, state_cf, ban_list: Set[int]) -> bool:
+async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, state_cf, ban_list: Set[int],
+                             active_suggesters: Dict[int, suggestion], suggestion_list: set[suggestion]) -> bool:
     """ Takes a command sent by a superuser. Check whether the messages match a superuser command. If so, run that command.
 
         :param update: Update object containing the sent message.
@@ -17,6 +19,8 @@ async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE,
         :param command: The text command sent by the user
         :param state_cf: Dict of configuration settings relating to the state of the script.
         :param ban_list: Set of user IDs that are banned.
+        :param active_suggesters: Dict of suggestions that the bot is interacting with a user for.
+        :param suggestion_list: Dict of suggestions since the last wipe.
 
         :returns: A bool indicating whether the message matches a command.
     """
@@ -26,36 +30,52 @@ async def super_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE,
         reply_message = update.message.reply_to_message
 
         # Get the user mentioned in the reply
-        user_id = get_user_from_text(reply_message.text_html)
+        reply_user_id = get_user_from_text(reply_message.text_html)
 
-        if user_id is None:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.ERROR_COULD_NOT_FIND_REPLY_USER)
+        if reply_user_id is None:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=Responses.ERROR_COULD_NOT_FIND_REPLY_USER)
             return True
-        elif await ban_unban(update, context, command, user_id, ban_list):
+        elif await ban_unban(update, context, command, reply_user_id, ban_list):
             return True
-        elif await enable_disable_bot(update, context, command):
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=Responses.ERROR_COMMAND_NOT_RECOGNIZED)
             return True
 
-    return False
+    if await enable_disable_bot(update, context, command, state_cf):
+        return True
+    if await split(update, context, command):
+        return True
+    if await list_suggestions(update, context, command, suggestion_list):
+        return True
+    # Check if the command is a user command and not an admin command.
+    if await user_text(update, context, update.message.from_user.id, active_suggesters, suggestion_list):
+        return True
+
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text=Responses.ERROR_COMMAND_NOT_RECOGNIZED)
+    return True
 
 
-async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, user_id: int, active_suggestors: Dict[int, str]) -> bool:
+async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int,
+                    active_suggesters: Dict[int, suggestion], suggestion_list: set[suggestion]) -> bool:
     """ Takes a command sent by a superuser. Check whether the messages match a superuser command. If so, run that command.
 
         :param update: Update object containing the sent message.
         :param context: Object containing the bot interface for the current chat.
-        :param command: The text command sent by the user
         :param user_id: The user ID
-        :param active_suggestors: Dict of active suggestors.
+        :param active_suggesters: Dict of active suggesters.
+        :param suggestion_list: Dict of suggestions since the last wipe.
 
         :returns: A bool indicating whether the message matches a command.
     """
 
-    if user_id not in active_suggestors:
+    if user_id not in active_suggesters:
         return False
 
     # If there is no link recorded for the user yet.
-    if active_suggestors[user_id] == "":
+    if active_suggesters[user_id].url is None:
 
         url = get_link_from_message(update)
         if url is None:
@@ -64,7 +84,7 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
 
         # TODO Remove tracking information?
         # TODO Check if the link was sent before?
-        active_suggestors[user_id] = url
+        active_suggesters[user_id].url = url
 
         keyboard = [
             [InlineKeyboardButton(Responses.SUGGESTION_YES_BUTTON, callback_data=Responses.SUGGESTION_YES_CALLBACK_DATA)],
@@ -73,13 +93,17 @@ async def user_text(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
         reply_buttons = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMMENT, reply_markup=reply_buttons)
 
-
         return True
 
     # If there is already a link sent by the user, and it's still active then the user is making a comment.
     comment = update.message.text
-    await PowerHourSuggestions.forward_to_superuser(context, update.message.from_user.id, update.message.chat.username, comment=comment)
+    active_suggesters[user_id].comment = comment
+    await PowerHourSuggestions.forward_to_superuser(context, update.message.from_user.id,
+                                                    update.message.chat.username, comment)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SUGGESTION_COMPLETE)
+    suggestion_list.add(active_suggesters[user_id])
+    del active_suggesters[user_id]
+    return True
 
 
 
@@ -114,6 +138,58 @@ async def ban_unban(update: Update, context: ContextTypes.DEFAULT_TYPE, command:
         return True
 
     return False
+
+async def split(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str,) -> bool:
+    """ Turns the bot on or off. Superuser commands can still be sent, but the bot will not respond anything else.
+
+        :param update: Update object containing the sent message.
+        :param context: Object containing the bot interface for the current chat.
+        :param command: The text command sent by the user.
+
+        :returns: A bool indicating whether the message triggers this function.
+    """
+
+    if command != Responses.SPLIT_COMMAND:
+        return False
+
+    # Ask the user to confirm whether they meant to split the list history.
+    keyboard = [
+        [InlineKeyboardButton(Responses.SU_BUTTON_SPLIT_YES, callback_data=Responses.SU_BUTTON_YES_SPLIT_CALLBACK_DATA)],
+        [InlineKeyboardButton(Responses.SU_BUTTON_SPLIT_NO, callback_data=Responses.SU_BUTTON_NO_SPLIT_CALLBACK_DATA)],
+    ]
+    reply_buttons = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=Responses.SPLIT_CONFIRMATION_REQUEST,
+                                   reply_markup=reply_buttons)
+
+    return True
+
+async def list_suggestions(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, suggestion_list: set[suggestion]) -> bool:
+    """ Turns the bot on or off. Superuser commands can still be sent, but the bot will not respond anything else.
+
+        :param update: Update object containing the sent message.
+        :param context: Object containing the bot interface for the current chat.
+        :param command: The text command sent by the user.
+        :param suggestion_list: Dict of suggestions since the last wipe.
+
+        :returns: A bool indicating whether the message triggers this function.
+    """
+    if command != Responses.LIST_COMMAND:
+        return False
+
+    text = ""
+    if suggestion_list:
+        for suggest in suggestion_list:
+            text += Responses.LIST_ENTRY.format(user_id=suggest.id, user_name=suggest.username, URL=suggest.url)
+            if suggest.comment is not None:
+                text += "\n" + Responses.LIST_COMMENT.format(comment=suggest.comment)
+            text += "\n\n"
+    else:
+        text = Responses.LIST_EMPTY
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+    return True
 
 async def enable_disable_bot(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str, state_cf) -> bool:
     """ Turns the bot on or off. Superuser commands can still be sent, but the bot will not respond anything else.
